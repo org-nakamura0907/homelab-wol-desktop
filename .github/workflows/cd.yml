@@ -1,0 +1,33 @@
+name: CD (manual release)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  release-macos:
+    name: Release (macOS manual)
+    runs-on: macos-latest
+    steps:
+      - name: Run shared release steps
+        uses: ./.github/actions/build-steps
+        with:
+          artifact-name: tauri-bundle-macos
+          upload-artifact: "true"
+
+  # release-linux:
+  #   name: Release (Linux manual)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Run shared release steps
+  #       uses: ./.github/actions/build-steps
+  #       with:
+  #         artifact-name: tauri-bundle-linux
+
+  # release-windows:
+  #   name: Release (Windows manual)
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Run shared release steps
+  #       uses: ./.github/actions/build-steps
+  #       with:
+  #         artifact-name: tauri-bundle-windows

@@ -1,0 +1,57 @@
+name: Tauri build helper (composite)
+
+description: "Shared build steps for Tauri + Vite + Rust projects"
+
+inputs:
+  artifact-name:
+    description: "Artifact name to export"
+    required: true
+  upload-artifact:
+    description: "Whether to upload build artifact"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: "20"
+
+    - name: Setup Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
+
+    - name: Install dependencies
+      run: pnpm install
+      shell: bash
+
+    - name: Frontend build
+      shell: bash
+      run: pnpm build
+
+    - name: Backend check (Rust)
+      shell: bash
+      run: cargo check --manifest-path src-tauri/Cargo.toml
+
+    - name: Build with Tauri
+      shell: bash
+      run: pnpm tauri build
+
+    - name: Upload artifact
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: src-tauri/target/release/bundle/**

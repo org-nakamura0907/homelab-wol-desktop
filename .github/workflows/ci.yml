@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  build-linux:
+    name: Build + Package (Linux)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Run shared build steps
+        uses: ./.github/actions/build-steps
+        with:
+          artifact-name: tauri-bundle-linux
+
+  # build-macos:
+  #   name: Build + Package (macOS)
+  #   runs-on: macos-latest
+  # if: github.event.pull_request.draft == false
+  #   steps:
+  #     - name: Run shared build steps
+  #       uses: ./.github/actions/build-steps
+  #       with:
+  #         artifact-name: tauri-bundle-macos
+
+  # build-windows:
+  #   name: Build + Package (Windows)
+  #   runs-on: windows-latest
+  #   if: github.event.pull_request.draft == false
+  #   steps:
+  #     - name: Run shared build steps
+  #       uses: ./.github/actions/build-steps
+  #       with:
+  #         artifact-name: tauri-bundle-windows
+
+  format-check:
+    name: Format check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install
+      - run: cargo fmt --all -- --check
+        shell: bash
+      - run: |
+          if pnpm run | grep -q "lint"; then
+            pnpm lint;
+          else
+            echo "lint script not found, skip";
+          fi
+        shell: bash
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        shell: bash
+
+  rust-test:
+    name: Rust test
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+        shell: bash
+
+  frontend-test:
+    name: Frontend test
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install
+      - run: |
+          if pnpm run | grep -q "test"; then
+            pnpm test;
+          else
+            echo "test script not found, skip";
+          fi
+        shell: bash
