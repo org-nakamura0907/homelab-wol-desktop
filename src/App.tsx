@@ -1,49 +1,78 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+interface Device {
+  name: string;
+  mac: string;
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+function App() {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [deviceName, setDeviceName] = useState("");
+  const [deviceMac, setDeviceMac] = useState("");
+
+  useEffect(() => {
+    loadDevices();
+  }, []);
+
+  async function loadDevices() {
+    try {
+      const loaded = await invoke<Device[]>("load_devices");
+      setDevices(loaded);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function saveDevices(newDevices: Device[]) {
+    try {
+      await invoke("save_devices", { devices: newDevices });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function addDevice() {
+    if (deviceName && deviceMac) {
+      const newDevices = [...devices, { name: deviceName, mac: deviceMac }];
+      setDevices(newDevices);
+      setDeviceName("");
+      setDeviceMac("");
+      saveDevices(newDevices);
+    }
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>WoL Devices</h1>
 
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <ul>
+        {devices.map((d, i) => (
+          <li key={i}>
+            {d.name} - {d.mac}
+          </li>
+        ))}
+      </ul>
 
       <form
-        className="row"
         onSubmit={(e) => {
           e.preventDefault();
-          greet();
+          addDevice();
         }}
       >
         <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+          value={deviceName}
+          onChange={(e) => setDeviceName(e.target.value)}
+          placeholder="Device Name"
         />
-        <button type="submit">Greet</button>
+        <input
+          value={deviceMac}
+          onChange={(e) => setDeviceMac(e.target.value)}
+          placeholder="MAC Address"
+        />
+        <button type="submit">Add Device</button>
       </form>
-      <p>{greetMsg}</p>
     </main>
   );
 }
