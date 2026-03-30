@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     steps:
+      - uses: actions/checkout@v4
       - name: Run shared build steps
         uses: ./.github/actions/build-steps
         with:
@@ -29,6 +30,7 @@ jobs:
   #   runs-on: macos-latest
   # if: github.event.pull_request.draft == false
   #   steps:
+  #     - uses: actions/checkout@v4
   #     - name: Run shared build steps
   #       uses: ./.github/actions/build-steps
   #       with:
@@ -39,6 +41,7 @@ jobs:
   #   runs-on: windows-latest
   #   if: github.event.pull_request.draft == false
   #   steps:
+  #     - uses: actions/checkout@v4
   #     - name: Run shared build steps
   #       uses: ./.github/actions/build-steps
   #       with:
@@ -60,7 +63,7 @@ jobs:
           version: 10
       - name: Install dependencies
         run: pnpm install
-      - run: cargo fmt --all -- --check
+      - run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
         shell: bash
       - run: |
           if pnpm run | grep -q "lint"; then

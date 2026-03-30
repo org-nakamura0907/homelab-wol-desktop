@@ -8,6 +8,7 @@ jobs:
     name: Release (macOS manual)
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Run shared release steps
         uses: ./.github/actions/build-steps
         with:
@@ -18,6 +19,7 @@ jobs:
   #   name: Release (Linux manual)
   #   runs-on: ubuntu-latest
   #   steps:
+  #     - uses: actions/checkout@v4
   #     - name: Run shared release steps
   #       uses: ./.github/actions/build-steps
   #       with:
@@ -27,6 +29,7 @@ jobs:
   #   name: Release (Windows manual)
   #   runs-on: windows-latest
   #   steps:
+  #     - uses: actions/checkout@v4
   #     - name: Run shared release steps
   #       uses: ./.github/actions/build-steps
   #       with:
