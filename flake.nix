@@ -29,6 +29,7 @@
           darwin.apple_sdk.frameworks.WebKit
           darwin.apple_sdk.frameworks.AppKit
           darwin.apple_sdk.frameworks.CoreServices
+          create-dmg
         ];
       in
       {
