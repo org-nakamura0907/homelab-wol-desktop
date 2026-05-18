@@ -33,6 +33,16 @@ function App() {
     }
   }
 
+  async function wakeDevice(mac: string) {
+    try {
+      await invoke("send_magic_packet", { macAddress: mac });
+      alert(`WoL packet sent to ${mac}`);
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to send WoL packet: ${e}`);
+    }
+  }
+
   function addDevice() {
     if (deviceName && deviceMac) {
       const newDevices = [...devices, { name: deviceName, mac: deviceMac }];
@@ -51,6 +61,7 @@ function App() {
         {devices.map((d, i) => (
           <li key={i}>
             {d.name} - {d.mac}
+            <button onClick={() => wakeDevice(d.mac)}>Wake</button>
           </li>
         ))}
       </ul>
