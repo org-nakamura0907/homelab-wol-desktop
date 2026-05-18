@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
 interface Device {
@@ -11,6 +12,9 @@ function App() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceName, setDeviceName] = useState("");
   const [deviceMac, setDeviceMac] = useState("");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [editingMac, setEditingMac] = useState("");
 
   useEffect(() => {
     loadDevices();
@@ -43,6 +47,60 @@ function App() {
     }
   }
 
+  function startEditingDevice(index: number) {
+    setEditingIndex(index);
+    setEditingName(devices[index].name);
+    setEditingMac(devices[index].mac);
+  }
+
+  async function saveEditingDevice() {
+    if (editingIndex === null || !editingName || !editingMac) return;
+
+    try {
+      await invoke("update_device", {
+        index: editingIndex,
+        name: editingName,
+        mac: editingMac,
+      });
+      const updatedDevices = [...devices];
+      updatedDevices[editingIndex] = {
+        name: editingName,
+        mac: editingMac,
+      };
+      setDevices(updatedDevices);
+      setEditingIndex(null);
+      setEditingName("");
+      setEditingMac("");
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to update device: ${e}`);
+    }
+  }
+
+  function cancelEditingDevice() {
+    setEditingIndex(null);
+    setEditingName("");
+    setEditingMac("");
+  }
+
+  async function deleteDevice(index: number) {
+    const confirmed = await confirm("Are you sure you want to delete this device?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await invoke("delete_device", { index });
+
+      const updatedDevices = devices.filter((_, i) => i !== index);
+      setDevices(updatedDevices);
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to delete device: ${e}`);
+    }
+  }
+
   function addDevice() {
     if (deviceName && deviceMac) {
       const newDevices = [...devices, { name: deviceName, mac: deviceMac }];
@@ -60,8 +118,29 @@ function App() {
       <ul>
         {devices.map((d, i) => (
           <li key={i}>
-            {d.name} - {d.mac}
-            <button onClick={() => wakeDevice(d.mac)}>Wake</button>
+            {editingIndex === i ? (
+              <div>
+                <input
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  placeholder="Device Name"
+                />
+                <input
+                  value={editingMac}
+                  onChange={(e) => setEditingMac(e.target.value)}
+                  placeholder="MAC Address"
+                />
+                <button onClick={() => saveEditingDevice()}>Save</button>
+                <button onClick={() => cancelEditingDevice()}>Cancel</button>
+              </div>
+            ) : (
+              <div>
+                <span>{d.name} - {d.mac}</span>
+                <button onClick={() => wakeDevice(d.mac)}>Wake</button>
+                <button onClick={() => startEditingDevice(i)}>Edit</button>
+                <button onClick={() => deleteDevice(i)}>Delete</button>
+              </div>
+            )}
           </li>
         ))}
       </ul>

@@ -61,6 +61,59 @@ fn send_magic_packet(mac_address: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn update_device(
+    app: tauri::AppHandle,
+    index: usize,
+    name: String,
+    mac: String,
+) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let file_path = dir.join("devices.json");
+
+    if !file_path.exists() {
+        return Err("No devices file found".to_string());
+    }
+
+    let json = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    if index >= devices.len() {
+        return Err(format!("Device index {} out of range", index));
+    }
+
+    devices[index] = Device { name, mac };
+
+    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
+    fs::write(&file_path, &updated_json).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_device(app: tauri::AppHandle, index: usize) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let file_path = dir.join("devices.json");
+
+    if !file_path.exists() {
+        return Err("No devices file found".to_string());
+    }
+
+    let json = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    if index >= devices.len() {
+        return Err(format!("Device index {} out of range", index));
+    }
+
+    devices.remove(index);
+
+    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
+    fs::write(&file_path, &updated_json).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Creates a WOL magic packet from a 6-byte MAC address.
 fn create_magic_packet(mac_bytes: &[u8; 6]) -> [u8; 102] {
     let mut packet = [0xFFu8; 102];
@@ -163,10 +216,13 @@ mod tests {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             save_devices,
             load_devices,
-            send_magic_packet
+            send_magic_packet,
+            update_device,
+            delete_device
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
