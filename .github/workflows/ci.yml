@@ -61,16 +61,19 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
       - run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
         shell: bash
-      - run: |
-          if pnpm run | grep -q "lint"; then
-            pnpm lint;
-          else
-            echo "lint script not found, skip";
-          fi
+      - name: Run ESLint
+        run: pnpm lint
+        shell: bash
+      - name: Check formatting with Prettier
+        run: pnpm format:check
         shell: bash
 
   clippy:

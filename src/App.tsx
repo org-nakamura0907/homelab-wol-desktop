@@ -135,7 +135,9 @@ function App() {
               </div>
             ) : (
               <div>
-                <span>{d.name} - {d.mac}</span>
+                <span>
+                  {d.name} - {d.mac}
+                </span>
                 <button onClick={() => wakeDevice(d.mac)}>Wake</button>
                 <button onClick={() => startEditingDevice(i)}>Edit</button>
                 <button onClick={() => deleteDevice(i)}>Delete</button>
