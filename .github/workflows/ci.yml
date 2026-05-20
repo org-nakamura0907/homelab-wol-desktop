@@ -124,12 +124,12 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
-      - run: |
-          if pnpm run | grep -q "test"; then
-            pnpm test;
-          else
-            echo "test script not found, skip";
-          fi
+      - name: Run tests
+        run: pnpm test run
         shell: bash
