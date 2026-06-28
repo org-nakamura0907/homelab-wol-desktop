@@ -35,6 +35,11 @@ runs:
         toolchain: stable
         profile: minimal
 
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        workdir: src-tauri
+
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:

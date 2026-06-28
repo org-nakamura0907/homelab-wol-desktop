@@ -1,10 +1,10 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod errors;
 
 use errors::MacAddressError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::UdpSocket;
+use std::path::Path;
 use tauri::Manager;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -13,23 +13,64 @@ struct Device {
     mac: String,
 }
 
+// --- Pure functions (testable without AppHandle) ---
+
+fn save_devices_to(dir: &Path, devices: &[Device]) -> Result<(), String> {
+    if !dir.exists() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(devices).map_err(|e| e.to_string())?;
+    fs::write(dir.join("devices.json"), json).map_err(|e| e.to_string())
+}
+
+fn load_devices_from(dir: &Path) -> Result<Vec<Device>, String> {
+    let path = dir.join("devices.json");
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let json = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&json).map_err(|e| e.to_string())
+}
+
+fn update_device_in(dir: &Path, index: usize, name: String, mac: String) -> Result<(), String> {
+    let path = dir.join("devices.json");
+    if !path.exists() {
+        return Err("No devices file found".to_string());
+    }
+    let json = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    if index >= devices.len() {
+        return Err(format!("Device index {} out of range", index));
+    }
+    devices[index] = Device { name, mac };
+    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
+    fs::write(&path, &updated_json).map_err(|e| e.to_string())
+}
+
+fn delete_device_from(dir: &Path, index: usize) -> Result<(), String> {
+    let path = dir.join("devices.json");
+    if !path.exists() {
+        return Err("No devices file found".to_string());
+    }
+    let json = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    if index >= devices.len() {
+        return Err(format!("Device index {} out of range", index));
+    }
+    devices.remove(index);
+    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
+    fs::write(&path, &updated_json).map_err(|e| e.to_string())
+}
+
+// --- Tauri command handlers (thin wrappers) ---
+
 #[tauri::command]
 fn save_devices(app: tauri::AppHandle, devices: Vec<Device>) -> Result<(), String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
-
-    if !dir.exists() {
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    }
-
-    let file_path = dir.join("devices.json");
-    let json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
-
-    fs::write(&file_path, &json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    save_devices_to(&dir, &devices)
 }
 
 #[tauri::command]
@@ -38,13 +79,7 @@ fn load_devices(app: tauri::AppHandle) -> Result<Vec<Device>, String> {
         .path()
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
-
-    let file_path = dir.join("devices.json");
-    if !file_path.exists() {
-        return Ok(vec![]);
-    }
-    let json = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&json).map_err(|e| e.to_string())
+    load_devices_from(&dir)
 }
 
 /// Sends a Wake-on-LAN (WOL) magic packet.
@@ -78,25 +113,7 @@ fn update_device(
         .path()
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
-    let file_path = dir.join("devices.json");
-
-    if !file_path.exists() {
-        return Err("No devices file found".to_string());
-    }
-
-    let json = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
-    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-
-    if index >= devices.len() {
-        return Err(format!("Device index {} out of range", index));
-    }
-
-    devices[index] = Device { name, mac };
-
-    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
-    fs::write(&file_path, &updated_json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    update_device_in(&dir, index, name, mac)
 }
 
 #[tauri::command]
@@ -105,25 +122,7 @@ fn delete_device(app: tauri::AppHandle, index: usize) -> Result<(), String> {
         .path()
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
-    let file_path = dir.join("devices.json");
-
-    if !file_path.exists() {
-        return Err("No devices file found".to_string());
-    }
-
-    let json = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
-    let mut devices: Vec<Device> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-
-    if index >= devices.len() {
-        return Err(format!("Device index {} out of range", index));
-    }
-
-    devices.remove(index);
-
-    let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
-    fs::write(&file_path, &updated_json).map_err(|e| e.to_string())?;
-
-    Ok(())
+    delete_device_from(&dir, index)
 }
 
 /// Creates a WOL magic packet from a 6-byte MAC address.
@@ -156,6 +155,9 @@ fn parse_mac_address(mac_address: &str) -> Result<[u8; 6], MacAddressError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
+
+    // --- parse_mac_address ---
 
     #[test]
     fn test_parse_mac_address_valid() {
@@ -207,6 +209,8 @@ mod tests {
         }
     }
 
+    // --- create_magic_packet ---
+
     #[test]
     fn test_create_magic_packet_structure() {
         let mac = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
@@ -221,6 +225,139 @@ mod tests {
             let end = start + 6;
             assert_eq!(&packet[start..end], &mac);
         }
+    }
+
+    // --- save_devices_to / load_devices_from ---
+
+    #[test]
+    fn test_load_devices_empty_when_no_file() {
+        let dir = tempdir().unwrap();
+        let result = load_devices_from(dir.path()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_load_devices() {
+        let dir = tempdir().unwrap();
+        let devices = vec![
+            Device {
+                name: "Server 1".into(),
+                mac: "00:11:22:33:44:55".into(),
+            },
+            Device {
+                name: "Server 2".into(),
+                mac: "AA:BB:CC:DD:EE:FF".into(),
+            },
+        ];
+
+        save_devices_to(dir.path(), &devices).unwrap();
+        let loaded = load_devices_from(dir.path()).unwrap();
+
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].name, "Server 1");
+        assert_eq!(loaded[0].mac, "00:11:22:33:44:55");
+        assert_eq!(loaded[1].name, "Server 2");
+        assert_eq!(loaded[1].mac, "AA:BB:CC:DD:EE:FF");
+    }
+
+    #[test]
+    fn test_save_creates_directory() {
+        let base = tempdir().unwrap();
+        let dir = base.path().join("nested").join("subdir");
+
+        save_devices_to(&dir, &[]).unwrap();
+
+        assert!(dir.join("devices.json").exists());
+    }
+
+    // --- update_device_in ---
+
+    #[test]
+    fn test_update_device() {
+        let dir = tempdir().unwrap();
+        let devices = vec![Device {
+            name: "Server 1".into(),
+            mac: "00:11:22:33:44:55".into(),
+        }];
+        save_devices_to(dir.path(), &devices).unwrap();
+
+        update_device_in(dir.path(), 0, "Updated".into(), "AA:BB:CC:DD:EE:FF".into()).unwrap();
+
+        let loaded = load_devices_from(dir.path()).unwrap();
+        assert_eq!(loaded[0].name, "Updated");
+        assert_eq!(loaded[0].mac, "AA:BB:CC:DD:EE:FF");
+    }
+
+    #[test]
+    fn test_update_device_out_of_range() {
+        let dir = tempdir().unwrap();
+        let devices = vec![Device {
+            name: "Server 1".into(),
+            mac: "00:11:22:33:44:55".into(),
+        }];
+        save_devices_to(dir.path(), &devices).unwrap();
+
+        let err =
+            update_device_in(dir.path(), 5, "X".into(), "00:00:00:00:00:00".into()).unwrap_err();
+
+        assert!(err.contains("out of range"));
+    }
+
+    #[test]
+    fn test_update_device_no_file() {
+        let dir = tempdir().unwrap();
+
+        let err =
+            update_device_in(dir.path(), 0, "X".into(), "00:00:00:00:00:00".into()).unwrap_err();
+
+        assert_eq!(err, "No devices file found");
+    }
+
+    // --- delete_device_from ---
+
+    #[test]
+    fn test_delete_device() {
+        let dir = tempdir().unwrap();
+        let devices = vec![
+            Device {
+                name: "Server 1".into(),
+                mac: "00:11:22:33:44:55".into(),
+            },
+            Device {
+                name: "Server 2".into(),
+                mac: "AA:BB:CC:DD:EE:FF".into(),
+            },
+        ];
+        save_devices_to(dir.path(), &devices).unwrap();
+
+        delete_device_from(dir.path(), 0).unwrap();
+
+        let loaded = load_devices_from(dir.path()).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "Server 2");
+    }
+
+    #[test]
+    fn test_delete_device_out_of_range() {
+        let dir = tempdir().unwrap();
+        let devices = vec![Device {
+            name: "Server 1".into(),
+            mac: "00:11:22:33:44:55".into(),
+        }];
+        save_devices_to(dir.path(), &devices).unwrap();
+
+        let err = delete_device_from(dir.path(), 5).unwrap_err();
+
+        assert!(err.contains("out of range"));
+    }
+
+    #[test]
+    fn test_delete_device_no_file() {
+        let dir = tempdir().unwrap();
+
+        let err = delete_device_from(dir.path(), 0).unwrap_err();
+
+        assert_eq!(err, "No devices file found");
     }
 }
 

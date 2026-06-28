@@ -75,6 +75,9 @@ jobs:
       - name: Check formatting with Prettier
         run: pnpm format:check
         shell: bash
+      - name: TypeScript type check
+        run: pnpm exec tsc --noEmit
+        shell: bash
 
   clippy:
     name: Clippy
@@ -92,6 +95,9 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workdir: src-tauri
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
         shell: bash
 
@@ -111,6 +117,9 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workdir: src-tauri
       - run: cargo test --manifest-path src-tauri/Cargo.toml
         shell: bash
 
@@ -130,12 +139,41 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
-      - name: Run tests
-        run: pnpm test -- --run
+      - name: Run tests with coverage
+        run: pnpm test:coverage
         shell: bash
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage/coverage-final.json
+          files: ./coverage/coverage-final.json,./coverage/lcov.info
           flags: frontend
         if: always()
+
+  security-audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workdir: src-tauri
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Rust security audit
+        run: cargo audit --manifest-path src-tauri/Cargo.toml
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install
+      - name: Node.js security audit
+        run: pnpm audit --audit-level=high
