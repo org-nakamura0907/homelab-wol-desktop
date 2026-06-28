@@ -10,7 +10,11 @@ impl fmt::Display for MacAddressError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MacAddressError::InvalidLength(len) => {
-                write!(f, "Invalid MAC address length: expected 6 parts, got {}", len)
+                write!(
+                    f,
+                    "Invalid MAC address length: expected 6 parts, got {}",
+                    len
+                )
             }
             MacAddressError::InvalidHex(part) => {
                 write!(f, "Invalid hexadecimal in MAC address: '{}'", part)

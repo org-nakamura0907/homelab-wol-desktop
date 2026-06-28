@@ -1,11 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod errors;
 
+use errors::MacAddressError;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::UdpSocket;
-use serde::{Deserialize, Serialize};
 use tauri::Manager;
-use errors::MacAddressError;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Device {
@@ -15,7 +15,10 @@ struct Device {
 
 #[tauri::command]
 fn save_devices(app: tauri::AppHandle, devices: Vec<Device>) -> Result<(), String> {
-    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
 
     if !dir.exists() {
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -31,7 +34,10 @@ fn save_devices(app: tauri::AppHandle, devices: Vec<Device>) -> Result<(), Strin
 
 #[tauri::command]
 fn load_devices(app: tauri::AppHandle) -> Result<Vec<Device>, String> {
-    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
 
     let file_path = dir.join("devices.json");
     if !file_path.exists() {
@@ -44,12 +50,12 @@ fn load_devices(app: tauri::AppHandle) -> Result<Vec<Device>, String> {
 /// Sends a Wake-on-LAN (WOL) magic packet.
 #[tauri::command]
 fn send_magic_packet(mac_address: String) -> Result<(), String> {
-    let mac_bytes = parse_mac_address(&mac_address)
-        .map_err(|e| format!("MAC address error: {}", e))?;
+    let mac_bytes =
+        parse_mac_address(&mac_address).map_err(|e| format!("MAC address error: {}", e))?;
     let packet = create_magic_packet(&mac_bytes);
 
-    let socket = UdpSocket::bind("0.0.0.0:0")
-        .map_err(|e| format!("Failed to create socket: {}", e))?;
+    let socket =
+        UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("Failed to create socket: {}", e))?;
     socket
         .set_broadcast(true)
         .map_err(|e| format!("Failed to set broadcast: {}", e))?;
@@ -68,7 +74,10 @@ fn update_device(
     name: String,
     mac: String,
 ) -> Result<(), String> {
-    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
     let file_path = dir.join("devices.json");
 
     if !file_path.exists() {
@@ -92,7 +101,10 @@ fn update_device(
 
 #[tauri::command]
 fn delete_device(app: tauri::AppHandle, index: usize) -> Result<(), String> {
-    let dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
     let file_path = dir.join("devices.json");
 
     if !file_path.exists() {
