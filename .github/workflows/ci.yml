@@ -167,7 +167,7 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Rust security audit
-        run: cargo audit --manifest-path src-tauri/Cargo.toml
+        run: cargo audit -f src-tauri/Cargo.lock
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
