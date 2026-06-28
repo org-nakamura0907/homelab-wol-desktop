@@ -3,11 +3,11 @@ import "@testing-library/jest-dom";
 
 // Tauri API をモック化
 vi.mock("@tauri-apps/api/core", () => ({
-    invoke: vi.fn(),
+  invoke: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
-    confirm: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 // グローバルな alert をモック化
