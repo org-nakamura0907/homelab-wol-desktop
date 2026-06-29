@@ -11,6 +11,37 @@ use tauri::Manager;
 struct Device {
     name: String,
     mac: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ip: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    host: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    group: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct AppSettings {
+    broadcast_addr: String,
+    udp_port: u16,
+    repeat_count: u8,
+    confirm_on_wake: bool,
+    notify_on_success: bool,
+    auto_ping: bool,
+    log_activity: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            broadcast_addr: "255.255.255.255".to_string(),
+            udp_port: 9,
+            repeat_count: 1,
+            confirm_on_wake: false,
+            notify_on_success: true,
+            auto_ping: false,
+            log_activity: true,
+        }
+    }
 }
 
 // --- Pure functions (testable without AppHandle) ---
@@ -32,7 +63,24 @@ fn load_devices_from(dir: &Path) -> Result<Vec<Device>, String> {
     serde_json::from_str(&json).map_err(|e| e.to_string())
 }
 
-fn update_device_in(dir: &Path, index: usize, name: String, mac: String) -> Result<(), String> {
+fn save_settings_to(dir: &Path, settings: &AppSettings) -> Result<(), String> {
+    if !dir.exists() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    fs::write(dir.join("settings.json"), json).map_err(|e| e.to_string())
+}
+
+fn load_settings_from(dir: &Path) -> Result<AppSettings, String> {
+    let path = dir.join("settings.json");
+    if !path.exists() {
+        return Ok(AppSettings::default());
+    }
+    let json = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&json).map_err(|e| e.to_string())
+}
+
+fn update_device_in(dir: &Path, index: usize, device: Device) -> Result<(), String> {
     let path = dir.join("devices.json");
     if !path.exists() {
         return Err("No devices file found".to_string());
@@ -42,7 +90,7 @@ fn update_device_in(dir: &Path, index: usize, name: String, mac: String) -> Resu
     if index >= devices.len() {
         return Err(format!("Device index {} out of range", index));
     }
-    devices[index] = Device { name, mac };
+    devices[index] = device;
     let updated_json = serde_json::to_string_pretty(&devices).map_err(|e| e.to_string())?;
     fs::write(&path, &updated_json).map_err(|e| e.to_string())
 }
@@ -82,9 +130,32 @@ fn load_devices(app: tauri::AppHandle) -> Result<Vec<Device>, String> {
     load_devices_from(&dir)
 }
 
+#[tauri::command]
+fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
+    save_settings_to(&dir, &settings)
+}
+
+#[tauri::command]
+fn load_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
+    load_settings_from(&dir)
+}
+
 /// Sends a Wake-on-LAN (WOL) magic packet.
 #[tauri::command]
-fn send_magic_packet(mac_address: String) -> Result<(), String> {
+fn send_magic_packet(
+    mac_address: String,
+    broadcast_addr: String,
+    udp_port: u16,
+    repeat_count: u8,
+) -> Result<(), String> {
     let mac_bytes =
         parse_mac_address(&mac_address).map_err(|e| format!("MAC address error: {}", e))?;
     let packet = create_magic_packet(&mac_bytes);
@@ -95,25 +166,24 @@ fn send_magic_packet(mac_address: String) -> Result<(), String> {
         .set_broadcast(true)
         .map_err(|e| format!("Failed to set broadcast: {}", e))?;
 
-    socket
-        .send_to(&packet, "255.255.255.255:9")
-        .map_err(|e| format!("Failed to send packet: {}", e))?;
+    let target = format!("{}:{}", broadcast_addr, udp_port);
+    let count = repeat_count.max(1);
+    for _ in 0..count {
+        socket
+            .send_to(&packet, &target)
+            .map_err(|e| format!("Failed to send packet: {}", e))?;
+    }
 
     Ok(())
 }
 
 #[tauri::command]
-fn update_device(
-    app: tauri::AppHandle,
-    index: usize,
-    name: String,
-    mac: String,
-) -> Result<(), String> {
+fn update_device(app: tauri::AppHandle, index: usize, device: Device) -> Result<(), String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
-    update_device_in(&dir, index, name, mac)
+    update_device_in(&dir, index, device)
 }
 
 #[tauri::command]
@@ -156,6 +226,16 @@ fn parse_mac_address(mac_address: &str) -> Result<[u8; 6], MacAddressError> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    fn make_device(name: &str, mac: &str) -> Device {
+        Device {
+            name: name.into(),
+            mac: mac.into(),
+            ip: None,
+            host: None,
+            group: None,
+        }
+    }
 
     // --- parse_mac_address ---
 
@@ -240,14 +320,8 @@ mod tests {
     fn test_save_and_load_devices() {
         let dir = tempdir().unwrap();
         let devices = vec![
-            Device {
-                name: "Server 1".into(),
-                mac: "00:11:22:33:44:55".into(),
-            },
-            Device {
-                name: "Server 2".into(),
-                mac: "AA:BB:CC:DD:EE:FF".into(),
-            },
+            make_device("Server 1", "00:11:22:33:44:55"),
+            make_device("Server 2", "AA:BB:CC:DD:EE:FF"),
         ];
 
         save_devices_to(dir.path(), &devices).unwrap();
@@ -270,18 +344,68 @@ mod tests {
         assert!(dir.join("devices.json").exists());
     }
 
+    #[test]
+    fn test_save_and_load_device_with_optional_fields() {
+        let dir = tempdir().unwrap();
+        let devices = vec![Device {
+            name: "NAS".into(),
+            mac: "AA:BB:CC:DD:EE:FF".into(),
+            ip: Some("192.168.1.10".into()),
+            host: Some("nas.local".into()),
+            group: Some("storage".into()),
+        }];
+
+        save_devices_to(dir.path(), &devices).unwrap();
+        let loaded = load_devices_from(dir.path()).unwrap();
+
+        assert_eq!(loaded[0].ip.as_deref(), Some("192.168.1.10"));
+        assert_eq!(loaded[0].host.as_deref(), Some("nas.local"));
+        assert_eq!(loaded[0].group.as_deref(), Some("storage"));
+    }
+
+    // --- save_settings_to / load_settings_from ---
+
+    #[test]
+    fn test_load_settings_defaults_when_no_file() {
+        let dir = tempdir().unwrap();
+        let settings = load_settings_from(dir.path()).unwrap();
+        assert_eq!(settings.broadcast_addr, "255.255.255.255");
+        assert_eq!(settings.udp_port, 9);
+        assert_eq!(settings.repeat_count, 1);
+    }
+
+    #[test]
+    fn test_save_and_load_settings() {
+        let dir = tempdir().unwrap();
+        let settings = AppSettings {
+            broadcast_addr: "192.168.1.255".into(),
+            udp_port: 7,
+            repeat_count: 3,
+            confirm_on_wake: true,
+            notify_on_success: false,
+            auto_ping: true,
+            log_activity: false,
+        };
+
+        save_settings_to(dir.path(), &settings).unwrap();
+        let loaded = load_settings_from(dir.path()).unwrap();
+
+        assert_eq!(loaded.broadcast_addr, "192.168.1.255");
+        assert_eq!(loaded.udp_port, 7);
+        assert_eq!(loaded.repeat_count, 3);
+        assert!(loaded.confirm_on_wake);
+        assert!(!loaded.notify_on_success);
+    }
+
     // --- update_device_in ---
 
     #[test]
     fn test_update_device() {
         let dir = tempdir().unwrap();
-        let devices = vec![Device {
-            name: "Server 1".into(),
-            mac: "00:11:22:33:44:55".into(),
-        }];
+        let devices = vec![make_device("Server 1", "00:11:22:33:44:55")];
         save_devices_to(dir.path(), &devices).unwrap();
 
-        update_device_in(dir.path(), 0, "Updated".into(), "AA:BB:CC:DD:EE:FF".into()).unwrap();
+        update_device_in(dir.path(), 0, make_device("Updated", "AA:BB:CC:DD:EE:FF")).unwrap();
 
         let loaded = load_devices_from(dir.path()).unwrap();
         assert_eq!(loaded[0].name, "Updated");
@@ -291,14 +415,11 @@ mod tests {
     #[test]
     fn test_update_device_out_of_range() {
         let dir = tempdir().unwrap();
-        let devices = vec![Device {
-            name: "Server 1".into(),
-            mac: "00:11:22:33:44:55".into(),
-        }];
+        let devices = vec![make_device("Server 1", "00:11:22:33:44:55")];
         save_devices_to(dir.path(), &devices).unwrap();
 
         let err =
-            update_device_in(dir.path(), 5, "X".into(), "00:00:00:00:00:00".into()).unwrap_err();
+            update_device_in(dir.path(), 5, make_device("X", "00:00:00:00:00:00")).unwrap_err();
 
         assert!(err.contains("out of range"));
     }
@@ -308,7 +429,7 @@ mod tests {
         let dir = tempdir().unwrap();
 
         let err =
-            update_device_in(dir.path(), 0, "X".into(), "00:00:00:00:00:00".into()).unwrap_err();
+            update_device_in(dir.path(), 0, make_device("X", "00:00:00:00:00:00")).unwrap_err();
 
         assert_eq!(err, "No devices file found");
     }
@@ -319,14 +440,8 @@ mod tests {
     fn test_delete_device() {
         let dir = tempdir().unwrap();
         let devices = vec![
-            Device {
-                name: "Server 1".into(),
-                mac: "00:11:22:33:44:55".into(),
-            },
-            Device {
-                name: "Server 2".into(),
-                mac: "AA:BB:CC:DD:EE:FF".into(),
-            },
+            make_device("Server 1", "00:11:22:33:44:55"),
+            make_device("Server 2", "AA:BB:CC:DD:EE:FF"),
         ];
         save_devices_to(dir.path(), &devices).unwrap();
 
@@ -340,10 +455,7 @@ mod tests {
     #[test]
     fn test_delete_device_out_of_range() {
         let dir = tempdir().unwrap();
-        let devices = vec![Device {
-            name: "Server 1".into(),
-            mac: "00:11:22:33:44:55".into(),
-        }];
+        let devices = vec![make_device("Server 1", "00:11:22:33:44:55")];
         save_devices_to(dir.path(), &devices).unwrap();
 
         let err = delete_device_from(dir.path(), 5).unwrap_err();
@@ -369,6 +481,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             save_devices,
             load_devices,
+            save_settings,
+            load_settings,
             send_magic_packet,
             update_device,
             delete_device
