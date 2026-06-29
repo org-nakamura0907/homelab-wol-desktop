@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
 interface Device {
@@ -193,7 +194,7 @@ function App() {
     const device = devices[index];
     if (!device) return;
 
-    if (settings.confirmOnWake && !window.confirm(`Send WoL packet to ${device.name}?`)) return;
+    if (settings.confirmOnWake && !(await confirm(`Send WoL packet to ${device.name}?`))) return;
 
     setStatuses((prev) => ({ ...prev, [statusKey(device)]: "waking" }));
 
@@ -288,7 +289,7 @@ function App() {
 
   async function handleDeleteDevice(index: number) {
     const device = devices[index];
-    if (!window.confirm(`Delete "${device.name}"?`)) return;
+    if (!(await confirm(`Delete "${device.name}"?`))) return;
 
     try {
       await invoke("delete_device", { index });

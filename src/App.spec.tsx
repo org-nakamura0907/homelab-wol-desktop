@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { invoke } from "@tauri-apps/api/core";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import App from "./App";
 
 vi.mock("@tauri-apps/api/core");
@@ -28,7 +29,7 @@ function setupInvoke(devices: unknown[] = []) {
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.confirm = vi.fn().mockReturnValue(true);
+    vi.mocked(confirm).mockResolvedValue(true);
   });
 
   describe("Initial render", () => {
@@ -288,7 +289,6 @@ describe("App", () => {
   describe("deleteDevice", () => {
     it("deletes device when confirmed", async () => {
       const user = userEvent.setup();
-      globalThis.confirm = vi.fn().mockReturnValue(true);
       setupInvoke([{ name: "Server 1", mac: "00:11:22:33:44:55" }]);
       render(<App />);
       await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
@@ -302,7 +302,7 @@ describe("App", () => {
 
     it("does not delete device when confirm is cancelled", async () => {
       const user = userEvent.setup();
-      globalThis.confirm = vi.fn().mockReturnValue(false);
+      vi.mocked(confirm).mockResolvedValue(false);
       setupInvoke([{ name: "Server 1", mac: "00:11:22:33:44:55" }]);
       render(<App />);
       await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
@@ -316,7 +316,6 @@ describe("App", () => {
 
     it("handles delete error gracefully", async () => {
       const user = userEvent.setup();
-      globalThis.confirm = vi.fn().mockReturnValue(true);
       (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
         if (cmd === "load_devices") return [{ name: "Server 1", mac: "00:11:22:33:44:55" }];
         if (cmd === "load_settings") return DEFAULT_TAURI_SETTINGS;
