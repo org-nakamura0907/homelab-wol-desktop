@@ -1,13 +1,18 @@
-# Graph Report - .  (2026-06-28)
+# Graph Report - homelab-wol-desktop  (2026-06-30)
 
 ## Corpus Check
-- 89 files · ~0 words
+- 40 files · ~56,629 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 195 nodes · 282 edges · 43 communities (21 shown, 22 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 5 edges (avg confidence: 0.91)
+- 559 nodes · 692 edges · 54 communities (32 shown, 22 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 5 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `e35ce6df`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Desktop Capability Schema|Desktop Capability Schema]]
@@ -44,30 +49,41 @@
 - [[_COMMUNITY_Windows Store Logo|Windows Store Logo]]
 - [[_COMMUNITY_Tauri Logo Asset|Tauri Logo Asset]]
 - [[_COMMUNITY_Vite Type Defs|Vite Type Defs]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
+- [[_COMMUNITY_Community 50|Community 50]]
+- [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `save_devices_to()` - 12 edges
-2. `Graphify Skill` - 12 edges
-3. `load_devices_from()` - 11 edges
-4. `_()` - 10 edges
-5. `update_device_in()` - 8 edges
-6. `delete_device_from()` - 8 edges
-7. `save_devices()` - 7 edges
-8. `load_devices()` - 7 edges
-9. `MacAddressError` - 7 edges
-10. `WolError` - 7 edges
+1. `compilerOptions` - 16 edges
+2. `homelab-wol-desktop` - 14 edges
+3. `save_devices_to()` - 13 edges
+4. `scripts` - 12 edges
+5. `load_devices_from()` - 12 edges
+6. `What You Must Do When Invoked` - 12 edges
+7. `Device` - 10 edges
+8. `/graphify` - 10 edges
+9. `Tauri Commands` - 10 edges
+10. `definitions` - 9 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Verify Skill (Local CI Checks)` --semantically_similar_to--> `CI Format Check Job`  [INFERRED] [semantically similar]
-  .claude/skills/verify/SKILL.md → .github/workflows/ci.yml
-- `Project CLAUDE.md (Codebase Guidance)` --references--> `Graphify Skill`  [EXTRACTED]
-  CLAUDE.md → .claude/skills/graphify/SKILL.md
 - `index.html Entry Point` --implements--> `Wake-on-LAN Desktop App`  [INFERRED]
   index.html → README.md
+- `Project CLAUDE.md (Codebase Guidance)` --references--> `Tauri Commands`  [EXTRACTED]
+  CLAUDE.md → README.md
 - `Project CLAUDE.md (Codebase Guidance)` --references--> `WoL Magic Packet (102 bytes)`  [EXTRACTED]
   CLAUDE.md → README.md
-- `Project CLAUDE.md (Codebase Guidance)` --references--> `Tauri Commands API`  [EXTRACTED]
+- `Project CLAUDE.md (Codebase Guidance)` --references--> `Wake-on-LAN Desktop App`  [EXTRACTED]
   CLAUDE.md → README.md
+- `parse_mac_address()` --references--> `MacAddressError`  [EXTRACTED]
+  src-tauri/src/lib.rs → src-tauri/src/errors.rs
 
 ## Import Cycles
 - None detected.
@@ -77,71 +93,119 @@
 - **WoL App Core Data Concepts** — readme_device_interface, readme_device_storage, readme_magic_packet, readme_tauri_commands [INFERRED 0.85]
 - **CI Quality Gate (all checks on PR to main)** — ci_format_check, ci_clippy, ci_rust_test, ci_frontend_test, ci_build_linux [EXTRACTED 1.00]
 
-## Communities (43 total, 22 thin omitted)
+## Communities (54 total, 22 thin omitted)
 
 ### Community 0 - "Desktop Capability Schema"
-Cohesion: 0.18
-Nodes (29): AppHandle, Path, Result, create_magic_packet(), delete_device(), delete_device_from(), Device, load_devices() (+21 more)
+Cohesion: 0.12
+Nodes (46): AppHandle, Default, Option, Path, Result, Self, AppSettings, create_magic_packet() (+38 more)
 
 ### Community 1 - "macOS Capability Schema"
-Cohesion: 0.09
-Nodes (28): Project CLAUDE.md (graphify integration), AST Structural Extraction (Part A), BFS/DFS Graph Traversal, Cluster-Only Rerun, Graph Community Detection, Cross-Repo Graph Merge, Graphify Honesty Rules, Incremental Update (--update) (+20 more)
+Cohesion: 0.06
+Nodes (35): graphify, AST Structural Extraction (Part A), BFS/DFS Graph Traversal, Cluster-Only Rerun, Graph Community Detection, Cross-Repo Graph Merge, Graphify Honesty Rules, Incremental Update (--update) (+27 more)
 
 ### Community 2 - "Rust Backend Core"
-Cohesion: 0.27
-Nodes (11): addSortIndicators(), enableUI(), getNthColumn(), getTable(), getTableBody(), getTableHeader(), loadColumns(), loadData() (+3 more)
+Cohesion: 0.07
+Nodes (40): boot(), collectProps(), compileAttr(), compileTemplate(), createComponentFactory(), createExternalModules(), createHelmetManager(), createPseudoSheet() (+32 more)
 
 ### Community 3 - "Graphify Knowledge Graph"
-Cohesion: 0.27
-Nodes (11): addSortIndicators(), enableUI(), getNthColumn(), getTable(), getTableBody(), getTableHeader(), loadColumns(), loadData() (+3 more)
+Cohesion: 0.04
+Nodes (49): description, properties, required, type, description, properties, required, type (+41 more)
 
 ### Community 4 - "Frontend Dependencies"
-Cohesion: 0.29
-Nodes (7): Display, Formatter, From, Self, MacAddressError, NetworkError, WolError
+Cohesion: 0.33
+Nodes (6): Display, Formatter, From, MacAddressError, NetworkError, WolError
 
 ### Community 5 - "Dev Toolchain"
-Cohesion: 0.27
-Nodes (8): a(), B(), D(), g(), i(), k(), Q(), y()
+Cohesion: 0.06
+Nodes (35): anyOf, anyOf, description, description, required, type, description, properties (+27 more)
 
 ### Community 6 - "Desktop Schema Types"
-Cohesion: 0.27
-Nodes (8): a(), B(), D(), g(), i(), k(), Q(), y()
+Cohesion: 0.06
+Nodes (33): dependencies, react, react-dom, @tauri-apps/api, @tauri-apps/plugin-dialog, @tauri-apps/plugin-opener, devDependencies, eslint (+25 more)
 
 ### Community 7 - "macOS Schema Types"
 Cohesion: 0.24
-Nodes (10): Tauri Build Helper Composite Action, CD Release macOS Job, CI Build + Package Linux Job, CI Clippy Job, CI Format Check Job, CI Frontend Test Job (with Codecov), CI Rust Test Job, Verify Skill (Local CI Checks) (+2 more)
+Nodes (9): Tauri Build Helper Composite Action, CD Release macOS Job, CI Build + Package Linux Job, CI Clippy Job, CI Format Check Job, CI Frontend Test Job (with Codecov), CI Rust Test Job, CD Workflow (Manual Release) (+1 more)
 
 ### Community 8 - "Tauri App Config"
-Cohesion: 0.39
-Nodes (7): _(), c(), f(), m, n(), z(), r()
+Cohesion: 0.06
+Nodes (34): properties, default, description, type, type, $ref, type, default (+26 more)
 
 ### Community 9 - "TypeScript Config"
-Cohesion: 0.39
-Nodes (8): Project CLAUDE.md (Codebase Guidance), index.html Entry Point, Device Interface, Device Persistent Storage (JSON), WoL Magic Packet (102 bytes), Project README, Tauri Commands API, Wake-on-LAN Desktop App
+Cohesion: 0.18
+Nodes (15): Project CLAUDE.md (Codebase Guidance), index.html Entry Point, API Reference, `delete_device`, Device Interface, Device Persistent Storage (JSON), Error Handling, `load_devices` (+7 more)
 
 ### Community 10 - "Desktop Remote Capability"
-Cohesion: 0.70
-Nodes (4): goToNext(), goToPrevious(), makeCurrent(), toggleClass()
+Cohesion: 0.08
+Nodes (24): Building, CI/CD Pipeline, Contributing, Data Storage, Development, Features, homelab-wol-desktop, IDE Setup (+16 more)
 
 ### Community 11 - "macOS Remote Capability"
-Cohesion: 0.70
-Nodes (4): goToNext(), goToPrevious(), makeCurrent(), toggleClass()
+Cohesion: 0.08
+Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
+
+### Community 12 - "CI/CD Pipeline"
+Cohesion: 0.11
+Nodes (10): AppSettings, DEFAULT_SETTINGS, Device, DeviceStatus, LogEntry, Screen, DEFAULT_TAURI_SETTINGS, TauriSettings (+2 more)
+
+### Community 43 - "Community 43"
+Cohesion: 0.10
+Nodes (20): anyOf, anyOf, description, definitions, Application, Number, PermissionEntry, Target (+12 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.10
+Nodes (19): app, security, windows, build, beforeBuildCommand, beforeDevCommand, devUrl, frontendDist (+11 more)
+
+### Community 45 - "Community 45"
+Cohesion: 0.11
+Nodes (18): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+10 more)
+
+### Community 46 - "Community 46"
+Cohesion: 0.17
+Nodes (12): scripts, build, dev, format, format:check, lint, lint:fix, preview (+4 more)
+
+### Community 47 - "Community 47"
+Cohesion: 0.18
+Nodes (10): Graphify MCP Server, Wiki Export (--wiki), graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag) (+2 more)
+
+### Community 48 - "Community 48"
+Cohesion: 0.22
+Nodes (7): Architecture Notes, Build & Test, CI Pipeline, Code Style, Dev Workflow, graphify, Project Overview
+
+### Community 49 - "Community 49"
+Cohesion: 0.22
+Nodes (8): arrowParens, bracketSpacing, endOfLine, printWidth, semi, singleQuote, tabWidth, trailingComma
+
+### Community 50 - "Community 50"
+Cohesion: 0.25
+Nodes (7): compilerOptions, allowSyntheticDefaultImports, composite, module, moduleResolution, skipLibCheck, include
+
+### Community 51 - "Community 51"
+Cohesion: 0.33
+Nodes (5): description, identifier, permissions, $schema, windows
+
+### Community 52 - "Community 52"
+Cohesion: 0.40
+Nodes (4): About the design files, Bundle contents, CODING AGENTS: READ THIS FIRST, What you should do — IMPORTANT
 
 ## Knowledge Gaps
-- **35 isolated node(s):** `Device`, `m`, `32x32 App Icon`, `Cluster-Only Rerun`, `Square89x89Logo - App Icon (89x89px)` (+30 more)
+- **291 isolated node(s):** `semi`, `singleQuote`, `tabWidth`, `trailingComma`, `printWidth` (+286 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Graphify Skill` connect `macOS Capability Schema` to `TypeScript Config`?**
-  _High betweenness centrality (0.026) - this node is a cross-community bridge._
-- **Why does `MacAddressError` connect `Frontend Dependencies` to `Desktop Capability Schema`?**
-  _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Why does `Project CLAUDE.md (Codebase Guidance)` connect `TypeScript Config` to `macOS Capability Schema`?**
-  _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **What connects `Device`, `m`, `32x32 App Icon` to the rest of the system?**
-  _37 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `homelab-wol-desktop` connect `Desktop Remote Capability` to `TypeScript Config`?**
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **What connects `semi`, `singleQuote`, `tabWidth` to the rest of the system?**
+  _293 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Desktop Capability Schema` be split into smaller, more focused modules?**
+  _Cohesion score 0.11529411764705882 - nodes in this community are weakly interconnected._
 - **Should `macOS Capability Schema` be split into smaller, more focused modules?**
-  _Cohesion score 0.09259259259259259 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05537098560354374 - nodes in this community are weakly interconnected._
+- **Should `Rust Backend Core` be split into smaller, more focused modules?**
+  _Cohesion score 0.06918238993710692 - nodes in this community are weakly interconnected._
+- **Should `Graphify Knowledge Graph` be split into smaller, more focused modules?**
+  _Cohesion score 0.04251700680272109 - nodes in this community are weakly interconnected._
