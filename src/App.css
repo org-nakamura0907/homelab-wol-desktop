@@ -575,7 +575,29 @@ body {
 }
 
 .card-status-text.waking {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--warning);
+}
+
+.meta-label {
+  font-size: 10px;
+  color: var(--text2);
+  opacity: 0.6;
+  font-family: "IBM Plex Mono", monospace;
+  user-select: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--warning);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .card-status-text.online {
@@ -785,6 +807,22 @@ body {
 .drawer-ping-btn:hover {
   border-color: var(--text2);
   color: var(--text);
+}
+
+.drawer-ping-btn--full {
+  flex: 1;
+}
+
+.drawer-waking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warning);
+  letter-spacing: 0.08em;
+  padding: 10px 0;
 }
 
 .drawer-wake-btn:hover {
@@ -1436,6 +1474,12 @@ body {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

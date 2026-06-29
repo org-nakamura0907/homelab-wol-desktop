@@ -599,31 +599,50 @@ function App() {
                             {d.group && <div className="card-group">{d.group}</div>}
                           </div>
                           <div className="card-meta">
-                            {d.ip && <div className="card-ip">{d.ip}</div>}
-                            <div className="card-mac">{d.mac}</div>
+                            {d.ip && (
+                              <div className="card-ip">
+                                <span className="meta-label">ip</span> {d.ip}
+                              </div>
+                            )}
+                            <div className="card-mac">
+                              <span className="meta-label">mac</span> {d.mac}
+                            </div>
                           </div>
                           <div className="card-footer">
-                            <span className={`card-status-text ${status}`}>
-                              {status === "waking" ? "waking..." : status}
-                              {status === "online" && pingMs[statusKey(d)] != null && (
-                                <span className="card-ping-ms"> · {pingMs[statusKey(d)]}ms</span>
-                              )}
-                            </span>
-                            {status === "offline" && lastSeen[statusKey(d)] && (
-                              <span className="card-last-seen">
-                                last seen {fmtLastSeen(lastSeen[statusKey(d)]!)}
+                            {status === "waking" ? (
+                              <span className="card-status-text waking">
+                                <span className="spinner" />
+                                waking...
                               </span>
+                            ) : (
+                              <>
+                                <span className={`card-status-text ${status}`}>
+                                  {status}
+                                  {status === "online" && pingMs[statusKey(d)] != null && (
+                                    <span className="card-ping-ms">
+                                      {" "}
+                                      · {pingMs[statusKey(d)]}ms
+                                    </span>
+                                  )}
+                                </span>
+                                {status === "offline" && lastSeen[statusKey(d)] && (
+                                  <span className="card-last-seen">
+                                    last seen {fmtLastSeen(lastSeen[statusKey(d)]!)}
+                                  </span>
+                                )}
+                                {status !== "online" && (
+                                  <button
+                                    className="wake-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleWake(idx);
+                                    }}
+                                  >
+                                    WAKE
+                                  </button>
+                                )}
+                              </>
                             )}
-                            <button
-                              className="wake-btn"
-                              disabled={status === "waking"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleWake(idx);
-                              }}
-                            >
-                              WAKE
-                            </button>
                           </div>
                         </div>
                       );
@@ -647,8 +666,14 @@ function App() {
                               <span className="card-group">{d.group}</span>
                             </div>
                           )}
-                          {d.ip && <div className="row-ip">{d.ip}</div>}
-                          <div className="row-mac">{d.mac}</div>
+                          {d.ip && (
+                            <div className="row-ip">
+                              <span className="meta-label">ip</span> {d.ip}
+                            </div>
+                          )}
+                          <div className="row-mac">
+                            <span className="meta-label">mac</span> {d.mac}
+                          </div>
                           {status === "online" && pingMs[statusKey(d)] != null && (
                             <span className="card-ping-ms">{pingMs[statusKey(d)]}ms</span>
                           )}
@@ -657,16 +682,21 @@ function App() {
                               {fmtLastSeen(lastSeen[statusKey(d)]!)}
                             </span>
                           )}
-                          <button
-                            className="wake-btn"
-                            disabled={status === "waking"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleWake(idx);
-                            }}
-                          >
-                            WAKE
-                          </button>
+                          {status === "waking" ? (
+                            <span className="spinner" />
+                          ) : (
+                            status !== "online" && (
+                              <button
+                                className="wake-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWake(idx);
+                                }}
+                              >
+                                WAKE
+                              </button>
+                            )
+                          )}
                         </div>
                       );
                     })}
@@ -819,20 +849,37 @@ function App() {
                   </span>
                 </div>
                 <div className="drawer-action-row">
-                  <button
-                    className="drawer-wake-btn"
-                    disabled={statuses[statusKey(drawerDevice)] === "waking"}
-                    onClick={() => drawerIndex !== null && handleWake(drawerIndex)}
-                  >
-                    {statuses[statusKey(drawerDevice)] === "waking" ? "SENDING..." : "WAKE NOW"}
-                  </button>
-                  {drawerDevice.ip && (
-                    <button
-                      className="drawer-ping-btn"
-                      onClick={() => drawerIndex !== null && pingDevice(devices[drawerIndex])}
-                    >
-                      PING
-                    </button>
+                  {statuses[statusKey(drawerDevice)] === "waking" ? (
+                    <span className="drawer-waking">
+                      <span className="spinner" />
+                      waking...
+                    </span>
+                  ) : statuses[statusKey(drawerDevice)] === "online" ? (
+                    drawerDevice.ip && (
+                      <button
+                        className="drawer-ping-btn drawer-ping-btn--full"
+                        onClick={() => drawerIndex !== null && pingDevice(devices[drawerIndex])}
+                      >
+                        PING
+                      </button>
+                    )
+                  ) : (
+                    <>
+                      <button
+                        className="drawer-wake-btn"
+                        onClick={() => drawerIndex !== null && handleWake(drawerIndex)}
+                      >
+                        WAKE NOW
+                      </button>
+                      {drawerDevice.ip && (
+                        <button
+                          className="drawer-ping-btn"
+                          onClick={() => drawerIndex !== null && pingDevice(devices[drawerIndex])}
+                        >
+                          PING
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
