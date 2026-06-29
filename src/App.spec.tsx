@@ -20,6 +20,7 @@ function setupInvoke(devices: unknown[] = []) {
   (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
     if (cmd === "load_devices") return devices;
     if (cmd === "load_settings") return DEFAULT_TAURI_SETTINGS;
+    if (cmd === "ping_device") throw new Error("Host unreachable");
     return undefined;
   });
 }
@@ -104,6 +105,28 @@ describe("App", () => {
 
       await user.click(screen.getByRole("button", { name: "CANCEL" }));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("selects group from dropdown when adding device", async () => {
+      const user = userEvent.setup();
+      setupInvoke([{ name: "Existing", mac: "00:11:22:33:44:55", group: "Servers" }]);
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Existing")).toBeInTheDocument());
+
+      await user.click(screen.getByRole("button", { name: "+ ADD HOST" }));
+      const modal = screen.getByRole("dialog");
+      await user.type(within(modal).getByPlaceholderText("e.g. homeserver"), "New Host");
+      await user.type(within(modal).getByPlaceholderText("AA:BB:CC:DD:EE:FF"), "AA:BB:CC:DD:EE:FF");
+      await user.selectOptions(within(modal).getByRole("combobox"), "Servers");
+      await user.click(within(modal).getByRole("button", { name: "ADD HOST" }));
+
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith("save_devices", {
+          devices: expect.arrayContaining([
+            expect.objectContaining({ name: "New Host", group: "Servers" }),
+          ]),
+        })
+      );
     });
 
     it("adds device with optional IP address", async () => {
@@ -194,6 +217,28 @@ describe("App", () => {
 
       await user.click(screen.getByRole("button", { name: "×" }));
       expect(screen.queryByRole("button", { name: "SAVE" })).not.toBeInTheDocument();
+    });
+
+    it("changes group select in drawer", async () => {
+      const user = userEvent.setup();
+      setupInvoke([
+        { name: "Server 1", mac: "00:11:22:33:44:55", group: "Servers" },
+        { name: "Server 2", mac: "AA:BB:CC:DD:EE:FF", group: "Servers" },
+      ]);
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await user.click(screen.getByText("Server 1"));
+      const groupSelect = screen.getAllByRole("combobox")[0];
+      await user.selectOptions(groupSelect, "Servers");
+
+      await user.click(screen.getByRole("button", { name: "SAVE" }));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith(
+          "update_device",
+          expect.objectContaining({ device: expect.objectContaining({ group: "Servers" }) })
+        )
+      );
     });
 
     it("edits IP, MAC, and notes fields in drawer", async () => {
@@ -470,6 +515,27 @@ describe("App", () => {
       await waitFor(() => expect(screen.getByText(/Failed to save settings/i)).toBeInTheDocument());
     });
 
+    it("changes repeat count in settings", async () => {
+      const user = userEvent.setup();
+      setupInvoke([]);
+      render(<App />);
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith("load_settings"));
+
+      await user.click(screen.getByText("Settings"));
+
+      const inputs = screen.getAllByRole("spinbutton");
+      const repeatInput = inputs[1]; // port=inputs[0], repeat=inputs[1]
+      await user.clear(repeatInput);
+      await user.type(repeatInput, "3");
+
+      await user.click(screen.getByRole("button", { name: "SAVE SETTINGS" }));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith("save_settings", {
+          settings: expect.objectContaining({ repeat_count: 3 }),
+        })
+      );
+    });
+
     it("adjusts UDP port and toggle then saves", async () => {
       const user = userEvent.setup();
       setupInvoke([]);
@@ -573,6 +639,61 @@ describe("App", () => {
     });
   });
 
+  describe("ping", () => {
+    it("shows unknown status for device with no IP when auto-ping is enabled", async () => {
+      (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
+        if (cmd === "load_devices") return [{ name: "Server 1", mac: "00:11:22:33:44:55" }];
+        if (cmd === "load_settings") return { ...DEFAULT_TAURI_SETTINGS, auto_ping: true };
+        return undefined;
+      });
+      const { container } = render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await waitFor(() => expect(container.querySelector(".status-dot.unknown")).toBeTruthy());
+    });
+
+    it("PING button appears in drawer only when device has IP", async () => {
+      const user = userEvent.setup();
+      setupInvoke([{ name: "Server 1", mac: "00:11:22:33:44:55", ip: "192.168.1.1" }]);
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await user.click(screen.getByText("Server 1"));
+      expect(screen.getByRole("button", { name: "PING" })).toBeInTheDocument();
+    });
+
+    it("PING button is absent in drawer when device has no IP", async () => {
+      const user = userEvent.setup();
+      setupInvoke([{ name: "Server 1", mac: "00:11:22:33:44:55" }]);
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await user.click(screen.getByText("Server 1"));
+      expect(screen.queryByRole("button", { name: "PING" })).not.toBeInTheDocument();
+    });
+
+    it("shows online status and ping ms after PING button clicked", async () => {
+      const user = userEvent.setup();
+      (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
+        if (cmd === "load_devices")
+          return [{ name: "Server 1", mac: "00:11:22:33:44:55", ip: "192.168.1.1" }];
+        if (cmd === "load_settings") return DEFAULT_TAURI_SETTINGS;
+        if (cmd === "ping_device") return 42;
+        return undefined;
+      });
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await user.click(screen.getByText("Server 1"));
+      await user.click(screen.getByRole("button", { name: "PING" }));
+
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith("ping_device", { ip: "192.168.1.1" })
+      );
+      await waitFor(() => expect(screen.getByText(/42ms/)).toBeInTheDocument());
+    });
+  });
+
   describe("viewMode", () => {
     it("switches to list view when list button is clicked", async () => {
       const user = userEvent.setup();
@@ -584,6 +705,18 @@ describe("App", () => {
 
       expect(container.querySelector(".device-row")).toBeTruthy();
       expect(container.querySelector(".device-card")).not.toBeTruthy();
+    });
+
+    it("opens drawer from list view", async () => {
+      const user = userEvent.setup();
+      setupInvoke([{ name: "Server 1", mac: "00:11:22:33:44:55" }]);
+      render(<App />);
+      await waitFor(() => expect(screen.getByText("Server 1")).toBeInTheDocument());
+
+      await user.click(screen.getByTitle("List view"));
+      await user.click(screen.getByText("Server 1"));
+
+      expect(screen.getByRole("button", { name: "WAKE NOW" })).toBeInTheDocument();
     });
 
     it("wakes device from list view WAKE button", async () => {

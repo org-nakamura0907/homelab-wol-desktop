@@ -516,6 +516,11 @@ body {
   animation: pulseDot 0.7s ease-in-out infinite;
 }
 
+.status-dot.unknown {
+  background: var(--border);
+  opacity: 0.4;
+}
+
 .card-name {
   font-weight: 500;
   font-size: 13px;
@@ -575,6 +580,18 @@ body {
 
 .card-status-text.online {
   color: var(--accent);
+}
+
+.card-ping-ms {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.card-last-seen {
+  font-size: 10px;
+  color: var(--text2);
+  margin-right: auto;
 }
 
 /* --- Device row (list view) --- */
@@ -730,8 +747,14 @@ body {
   font-family: "IBM Plex Mono", monospace;
 }
 
+.drawer-action-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
 .drawer-wake-btn {
-  width: 100%;
+  flex: 1;
   background: var(--accent);
   border: none;
   border-radius: var(--radius);
@@ -743,7 +766,25 @@ body {
   font-size: 12px;
   letter-spacing: 0.08em;
   transition: opacity 0.15s;
-  margin-bottom: 18px;
+}
+
+.drawer-ping-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text2);
+  cursor: pointer;
+  padding: 10px 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.drawer-ping-btn:hover {
+  border-color: var(--text2);
+  color: var(--text);
 }
 
 .drawer-wake-btn:hover {

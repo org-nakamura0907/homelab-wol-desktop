@@ -45,7 +45,7 @@ interface LogEntry {
 
 type Screen = "devices" | "activity" | "settings";
 type ViewMode = "grid" | "list";
-type DeviceStatus = "online" | "offline" | "waking";
+type DeviceStatus = "online" | "offline" | "waking" | "unknown";
 
 const DEFAULT_SETTINGS: AppSettings = {
   broadcastAddr: "255.255.255.255",
@@ -81,6 +81,13 @@ function toTauri(s: AppSettings): TauriSettings {
   };
 }
 
+function fmtLastSeen(date: Date): string {
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const day = date.getDate();
+  const time = date.toTimeString().slice(0, 5);
+  return `${month} ${day}, ${time}`;
+}
+
 let _toastId = 0;
 let _logId = 0;
 
@@ -93,6 +100,8 @@ function App() {
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, DeviceStatus>>({});
+  const [pingMs, setPingMs] = useState<Record<string, number | null>>({});
+  const [lastSeen, setLastSeen] = useState<Record<string, Date | null>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -100,6 +109,7 @@ function App() {
   const [drawerIndex, setDrawerIndex] = useState<number | null>(null);
   const [drawerForm, setDrawerForm] = useState<Device>({ name: "", mac: "" });
   const drawerRef = useRef<HTMLDivElement>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Add modal state
   const [showModal, setShowModal] = useState(false);
@@ -118,27 +128,7 @@ function App() {
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null);
   const [editingGroupValue, setEditingGroupValue] = useState("");
 
-  useEffect(() => {
-    invoke<Device[]>("load_devices").then(setDevices).catch(console.error);
-    invoke<TauriSettings>("load_settings")
-      .then((s) => {
-        const parsed = fromTauri(s);
-        setSettings(parsed);
-        setSettingsForm(parsed);
-      })
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (drawerIndex === null) return;
-    function onMouseDown(e: MouseEvent) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
-        setDrawerIndex(null);
-      }
-    }
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [drawerIndex]);
+  const statusKey = (d: Device) => d.mac;
 
   const addToast = useCallback((message: string, type: Toast["type"]) => {
     const id = `t${++_toastId}`;
@@ -151,7 +141,53 @@ function App() {
     setLog((prev) => [{ id, ts: new Date(), message, level }, ...prev]);
   }, []);
 
-  const statusKey = (d: Device) => d.mac;
+  const pingDevice = useCallback(async (device: Device): Promise<boolean> => {
+    if (!device.ip) {
+      setStatuses((prev) => ({ ...prev, [device.mac]: "unknown" }));
+      return false;
+    }
+    try {
+      const ms = await invoke<number>("ping_device", { ip: device.ip });
+      setStatuses((prev) => ({ ...prev, [device.mac]: "online" }));
+      setPingMs((prev) => ({ ...prev, [device.mac]: ms }));
+      setLastSeen((prev) => ({ ...prev, [device.mac]: new Date() }));
+      return true;
+    } catch {
+      setStatuses((prev) => ({ ...prev, [device.mac]: "offline" }));
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    Promise.all([invoke<Device[]>("load_devices"), invoke<TauriSettings>("load_settings")])
+      .then(([devs, raw]) => {
+        const parsed = fromTauri(raw);
+        setDevices(devs);
+        setSettings(parsed);
+        setSettingsForm(parsed);
+        if (parsed.autoPing) {
+          devs.forEach((d) => pingDevice(d));
+        }
+      })
+      .catch(console.error);
+  }, [pingDevice]);
+
+  useEffect(() => {
+    if (drawerIndex === null) return;
+    function onMouseDown(e: MouseEvent) {
+      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+        setDrawerIndex(null);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [drawerIndex]);
 
   async function handleWake(index: number) {
     const device = devices[index];
@@ -171,13 +207,27 @@ function App() {
       if (settings.notifyOnSuccess) addToast(`WoL packet sent to ${device.name}`, "success");
       if (settings.logActivity)
         addLog(`WoL packet sent to ${device.name} (${device.mac})`, "success");
-      setTimeout(() => {
-        setStatuses((prev) => {
-          const next = { ...prev };
-          if (next[statusKey(device)] === "waking") delete next[statusKey(device)];
-          return next;
-        });
-      }, 10000);
+
+      if (device.ip) {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        let attempts = 0;
+        pollTimerRef.current = setInterval(async () => {
+          attempts++;
+          const online = await pingDevice(device);
+          if (online || attempts >= 12) {
+            clearInterval(pollTimerRef.current!);
+            pollTimerRef.current = null;
+          }
+        }, 5000);
+      } else {
+        setTimeout(() => {
+          setStatuses((prev) => {
+            const next = { ...prev };
+            if (next[statusKey(device)] === "waking") delete next[statusKey(device)];
+            return next;
+          });
+        }, 10000);
+      }
     } catch (e) {
       addToast(`Failed to wake ${device.name}: ${e}`, "error");
       if (settings.logActivity) addLog(`Failed to wake ${device.name}: ${e}`, "error");
@@ -554,7 +604,15 @@ function App() {
                           <div className="card-footer">
                             <span className={`card-status-text ${status}`}>
                               {status === "waking" ? "waking..." : status}
+                              {status === "online" && pingMs[statusKey(d)] != null && (
+                                <span className="card-ping-ms"> · {pingMs[statusKey(d)]}ms</span>
+                              )}
                             </span>
+                            {status === "offline" && lastSeen[statusKey(d)] && (
+                              <span className="card-last-seen">
+                                last seen {fmtLastSeen(lastSeen[statusKey(d)]!)}
+                              </span>
+                            )}
                             <button
                               className="wake-btn"
                               disabled={status === "waking"}
@@ -590,6 +648,14 @@ function App() {
                           )}
                           {d.ip && <div className="row-ip">{d.ip}</div>}
                           <div className="row-mac">{d.mac}</div>
+                          {status === "online" && pingMs[statusKey(d)] != null && (
+                            <span className="card-ping-ms">{pingMs[statusKey(d)]}ms</span>
+                          )}
+                          {status === "offline" && lastSeen[statusKey(d)] && (
+                            <span className="card-last-seen">
+                              {fmtLastSeen(lastSeen[statusKey(d)]!)}
+                            </span>
+                          )}
                           <button
                             className="wake-btn"
                             disabled={status === "waking"}
@@ -751,13 +817,23 @@ function App() {
                     {statuses[statusKey(drawerDevice)] ?? "offline"}
                   </span>
                 </div>
-                <button
-                  className="drawer-wake-btn"
-                  disabled={statuses[statusKey(drawerDevice)] === "waking"}
-                  onClick={() => drawerIndex !== null && handleWake(drawerIndex)}
-                >
-                  {statuses[statusKey(drawerDevice)] === "waking" ? "SENDING..." : "WAKE NOW"}
-                </button>
+                <div className="drawer-action-row">
+                  <button
+                    className="drawer-wake-btn"
+                    disabled={statuses[statusKey(drawerDevice)] === "waking"}
+                    onClick={() => drawerIndex !== null && handleWake(drawerIndex)}
+                  >
+                    {statuses[statusKey(drawerDevice)] === "waking" ? "SENDING..." : "WAKE NOW"}
+                  </button>
+                  {drawerDevice.ip && (
+                    <button
+                      className="drawer-ping-btn"
+                      onClick={() => drawerIndex !== null && pingDevice(devices[drawerIndex])}
+                    >
+                      PING
+                    </button>
+                  )}
+                </div>
 
                 <div className="drawer-section-title">Details</div>
                 <div className="drawer-field">
