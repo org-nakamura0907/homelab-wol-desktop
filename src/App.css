@@ -1469,6 +1469,21 @@ body {
   }
 }
 
+.toast.removing {
+  animation: toastOut 0.2s ease forwards;
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 @keyframes drawerIn {
   from {
     opacity: 0;

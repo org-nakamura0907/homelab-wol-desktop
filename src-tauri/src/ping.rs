@@ -27,17 +27,13 @@ fn ping_host(ip: &str) -> Result<u32, String> {
 }
 
 fn parse_ping_rtt(output: &str) -> Option<u32> {
-    for line in output.lines() {
-        if let Some(pos) = line.find("time=") {
-            let rest = &line[pos + 5..];
-            if let Some(end) = rest.find(" ms") {
-                if let Ok(ms) = rest[..end].trim().parse::<f64>() {
-                    return Some(ms.round() as u32);
-                }
-            }
-        }
-    }
-    None
+    output.lines().find_map(|line| {
+        let pos = line.find("time=")?;
+        let rest = &line[pos + 5..]; // "time=" の後の部分を取得
+        let end = rest.find(" ms")?;
+        let ms: f64 = rest[..end].trim().parse().ok()?; // "ms" の前の数値をパース
+        Some(ms.round() as u32)
+    })
 }
 
 #[cfg(test)]

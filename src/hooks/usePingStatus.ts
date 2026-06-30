@@ -31,8 +31,7 @@ export function usePingStatus() {
 
   function clearStatus(mac: string) {
     setStatuses((prev) => {
-      const next = { ...prev };
-      delete next[mac];
+      const { [mac]: _, ...next } = prev;
       return next;
     });
   }
@@ -45,8 +44,7 @@ export function usePingStatus() {
   function clearStatusIfWaking(mac: string) {
     setStatuses((prev) => {
       if (prev[mac] !== "waking") return prev;
-      const next = { ...prev };
-      delete next[mac];
+      const { [mac]: _, ...next } = prev;
       return next;
     });
   }

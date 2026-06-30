@@ -9,6 +9,7 @@ export function useGroups(
   saveDevices: (devices: Device[]) => Promise<void>,
   addToast: (message: string, type: "success" | "error" | "info") => void
 ) {
+  // デバイスがまだ所属していない「空のグループ」
   const [extraGroups, setExtraGroups] = useState<string[]>([]);
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");

@@ -1,8 +1,9 @@
-/** 一時的な通知。2.9秒で自動的に消える。 */
+/** 一時的な通知。自動的に消える。 */
 export interface Toast {
   id: string;
   message: string;
   type: "success" | "error" | "info";
+  removing?: boolean;
 }
 
 /** `logActivity` が有効なときに記録されるアクティビティログのエントリ。 */

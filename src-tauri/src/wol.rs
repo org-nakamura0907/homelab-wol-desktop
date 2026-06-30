@@ -35,6 +35,7 @@ fn create_magic_packet(mac_bytes: &[u8; 6]) -> [u8; 102] {
     let mut packet = [0xFFu8; 102];
 
     for i in 0..16 {
+        // 例: i=0 の場合、packet[6..12] に MAC をコピー
         packet[6 + i * 6..6 + (i + 1) * 6].copy_from_slice(mac_bytes);
     }
 

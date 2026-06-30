@@ -116,7 +116,7 @@ function App() {
 
       <div className="toast-container">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.type}`}>
+          <div key={t.id} className={`toast ${t.type}${t.removing ? " removing" : ""}`}>
             <span className={`toast-icon ${t.type}`}>
               {t.type === "success" ? "✓" : t.type === "error" ? "✗" : "ℹ"}
             </span>

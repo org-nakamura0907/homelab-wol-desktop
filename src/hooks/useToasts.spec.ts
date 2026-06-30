@@ -14,18 +14,26 @@ describe("useToasts", () => {
     expect(result.current.toasts[0].type).toBe("success");
   });
 
-  it("auto-dismisses after 2.9s", () => {
+  it("marks toast as removing after 3s", () => {
     const { result } = renderHook(() => useToasts());
     act(() => result.current.addToast("Temp", "info"));
-    act(() => vi.advanceTimersByTime(2900));
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.toasts).toHaveLength(1);
+    expect(result.current.toasts[0].removing).toBe(true);
+  });
+
+  it("removes toast from state after 3.2s", () => {
+    const { result } = renderHook(() => useToasts());
+    act(() => result.current.addToast("Temp", "info"));
+    act(() => vi.advanceTimersByTime(3200));
     expect(result.current.toasts).toHaveLength(0);
   });
 
-  it("does not dismiss before 2.9s", () => {
+  it("does not start removing before 3s", () => {
     const { result } = renderHook(() => useToasts());
     act(() => result.current.addToast("Hello", "error"));
-    act(() => vi.advanceTimersByTime(2899));
-    expect(result.current.toasts).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(2999));
+    expect(result.current.toasts[0].removing).toBeFalsy();
   });
 
   it("dismisses only the specific toast, not others", () => {
@@ -33,8 +41,8 @@ describe("useToasts", () => {
     act(() => result.current.addToast("First", "success"));
     act(() => vi.advanceTimersByTime(1000));
     act(() => result.current.addToast("Second", "info"));
-    // First toast hits 2900ms, Second toast is only 1900ms old
-    act(() => vi.advanceTimersByTime(1900));
+    // First toast hits 3200ms total, Second toast is only 2200ms old
+    act(() => vi.advanceTimersByTime(2200));
     expect(result.current.toasts).toHaveLength(1);
     expect(result.current.toasts[0].message).toBe("Second");
   });
