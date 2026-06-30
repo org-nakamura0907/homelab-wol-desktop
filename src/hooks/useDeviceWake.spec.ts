@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -14,8 +14,8 @@ describe("useDeviceWake", () => {
   let setWaking: ReturnType<typeof vi.fn>;
   let clearStatus: ReturnType<typeof vi.fn>;
   let clearStatusIfWaking: ReturnType<typeof vi.fn>;
-  let addToast: ReturnType<typeof vi.fn>;
-  let addLog: ReturnType<typeof vi.fn>;
+  let addToast: Mock<(message: string, type: "success" | "error" | "info") => void>;
+  let addLog: Mock<(message: string, level: "info" | "success" | "error") => void>;
 
   beforeEach(() => {
     vi.useFakeTimers();
