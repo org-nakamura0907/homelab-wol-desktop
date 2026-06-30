@@ -1,213 +1,144 @@
 # homelab-wol-desktop
 
-Wake-on-LAN (WoL) desktop application built with Tauri, React, and TypeScript. Easily manage your devices and send WoL magic packets to wake them remotely.
+ホームラボのPC群をリモートで起動するための Wake-on-LAN 管理デスクトップアプリ。  
+Tauri 2 + React + TypeScript + Rust で構築。
 
-## Features
+## スクリーンショット
 
-- 📱 **Device Management**: Add, edit, and delete devices with MAC addresses
-- 🌙 **Wake-on-LAN**: Send magic packets to wake devices on your network
-- 💾 **Persistent Storage**: Devices are automatically saved and restored
-- 🔒 **Type-Safe**: Full TypeScript and Rust error handling
-- ⚡ **Fast & Lightweight**: Minimal dependencies, optimized Vite build
-- ✅ **Well-Tested**: 14+ tests with 80%+ coverage
-- 🎨 **Clean UI**: Intuitive React interface with inline editing
+<!-- TODO: pnpm tauri dev でアプリを起動し、各画面を撮影して docs/screenshots/ に保存する -->
 
-## System Requirements
+**デバイス画面**
 
-- **Node.js** 20+ (or 18.18+ for LTS)
-- **Rust** 1.70+ (for building)
-- **pnpm** 10+ (or npm/yarn)
-- **macOS 11+**, **Ubuntu 20.04+**, or **Windows 10+**
+![デバイス画面](docs/screenshots/devices.jpg)
 
-## Installation
+**アクティビティ**
 
-### Using Nix (Recommended for Development)
+![アクティビティ](docs/screenshots/activity.jpg)
+
+**設定**
+
+![設定](docs/screenshots/settings.jpg)
+
+## 機能
+
+- **デバイス管理**: MACアドレス・IPアドレス・グループでデバイスを登録・編集・削除
+- **Wake-on-LAN**: ボタン一つでマジックパケットをUDPブロードキャスト送信
+- **死活監視**: 登録済みIPへのpingで `online / offline / waking` ステータスをリアルタイム表示
+- **グループ・検索**: デバイスをグループ分けし、名前・MAC・IPで絞り込み
+- **アクティビティログ**: WoL送信・ping結果をターミナル風ログで記録
+- **設定**: ブロードキャストアドレス、UDPポート、送信回数、各種トグルをGUIで変更
+- **永続化**: デバイス・設定はJSONファイルとして自動保存・復元
+
+## 技術スタック
+
+| レイヤー       | 技術                                          |
+| -------------- | --------------------------------------------- |
+| フロントエンド | React 18 + TypeScript + Vite                  |
+| バックエンド   | Rust (Tauri 2)                                |
+| テスト         | Vitest (フロント) / `cargo test` (Rust)       |
+| CI             | GitHub Actions (format / lint / test / build) |
+| 開発環境       | Nix flake                                     |
+
+## アーキテクチャ
+
+フロントエンド（React）は Tauri の `invoke()` を通じて Rust のコマンドを呼び出す。  
+ネットワーク操作（UDP送信・ping実行）やファイルI/OはすべてRust側で処理する。
+
+```
+React (TypeScript)
+  └─ invoke("command_name", args)
+       └─ Rust (src-tauri/src/)
+            ├─ wol.rs       : マジックパケット生成・UDP送信
+            ├─ ping.rs      : OSのpingコマンド実行・RTT解析
+            └─ commands.rs  : devices.json / settings.json の読み書き
+```
+
+### Tauri コマンド一覧
+
+| コマンド            | 役割                                               | 主な引数                                                |
+| ------------------- | -------------------------------------------------- | ------------------------------------------------------- |
+| `send_magic_packet` | UDPブロードキャストでマジックパケット送信          | `macAddress`, `broadcastAddr`, `udpPort`, `repeatCount` |
+| `ping_device`       | OSの`ping`コマンドで死活確認→RTT(ms)を返す         | `ip`                                                    |
+| `load_devices`      | `devices.json` を読み込む                          | —                                                       |
+| `save_devices`      | `devices.json` に書き込む                          | `devices`                                               |
+| `update_device`     | 配列インデックスで1デバイスを更新                  | `index`, `device`                                       |
+| `delete_device`     | 配列インデックスで1デバイスを削除                  | `index`                                                 |
+| `load_settings`     | `settings.json` を読み込む（なければデフォルト値） | —                                                       |
+| `save_settings`     | `settings.json` に書き込む                         | `settings`                                              |
+
+### ファイル構成
+
+```
+src/
+├── App.tsx                  # ルートコンポーネント・画面切り替え
+├── features/
+│   ├── devices/             # デバイス一覧・追加・編集・WoL送信
+│   ├── activity/            # アクティビティログ表示
+│   └── settings/            # アプリ設定画面
+├── components/
+│   └── Sidebar.tsx          # サイドバー（ナビ・グループ・統計）
+├── hooks/
+│   └── useDeviceWake.ts     # WoL送信フロー（送信→ping監視）
+├── types/                   # Device / AppSettings / UI型定義
+└── lib/                     # ユーティリティ
+
+src-tauri/src/
+├── lib.rs                   # Tauriコマンド登録
+├── commands.rs              # デバイス・設定のファイルI/O
+├── wol.rs                   # マジックパケット生成・UDP送信
+├── ping.rs                  # ping実行・RTT解析
+└── errors.rs                # エラー型
+```
+
+### データ保存場所
+
+| OS      | パス                                                     |
+| ------- | -------------------------------------------------------- |
+| macOS   | `~/Library/Application Support/com.homelab-wol.desktop/` |
+| Linux   | `~/.config/com.homelab-wol.desktop/`                     |
+| Windows | `%APPDATA%\com.homelab-wol.desktop\`                     |
+
+`devices.json` と `settings.json` の2ファイルが作成される。
+
+## セットアップ
+
+### 前提条件
+
+このプロジェクトを動かすには、以下のツールがインストールされている必要がある。
+
+- Nix
+- direnv
+
+### 環境の起動
+
+ターミナルでプロジェクトルートに移動して、以下のコマンドを実行する。
 
 ```bash
-nix develop  # Enter dev shell with all dependencies
+echo "use flake" >> .envrc
+direnv allow
+
 pnpm install
 ```
 
-### Manual Setup
+## 開発コマンド
 
 ```bash
-# Install dependencies
-pnpm install
+# 開発
+pnpm tauri dev
 
-# For Rust/Tauri build on Linux, also install:
-sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-```
-
-## Development
-
-### Start Development Server
-
-```bash
-pnpm dev              # Start Vite dev server
-pnpm tauri:dev       # Start Tauri app with live reload
-```
-
-### Building
-
-```bash
-# Frontend only
+# ビルド
 pnpm build
+pnpm tauri build
 
-# Full Tauri app
-pnpm tauri build     # Builds for current platform
+# テスト・品質チェック
+pnpm test -- --run
+pnpm test:coverage
+pnpm lint
+pnpm format
+pnpm format:check
+
+cd src-tauri
+cargo test
+cargo clippy -- -D warnings
+cargo fmt
 ```
-
-## Quality Assurance
-
-### Linting & Formatting
-
-```bash
-pnpm lint            # Run ESLint
-pnpm format          # Auto-format with Prettier
-pnpm format:check    # Check formatting
-```
-
-### Testing
-
-```bash
-pnpm test              # Run tests in watch mode
-pnpm test -- --run    # Single test run (used in CI)
-pnpm test:ui          # Interactive test UI
-pnpm test:coverage    # Generate coverage report
-```
-
-### Rust Backend
-
-```bash
-cargo test           # Run Rust tests
-cargo clippy         # Lint Rust code
-```
-
-## Project Structure
-
-```
-├── src/                    # React frontend
-│   ├── App.tsx            # Main component
-│   ├── App.spec.tsx       # Component tests
-│   ├── App.css            # Styles
-│   └── test/
-│       └── setup.ts       # Test configuration & mocks
-├── src-tauri/             # Rust backend
-│   ├── src/
-│   │   ├── lib.rs        # Tauri commands
-│   │   ├── main.rs       # App entry point
-│   │   └── errors.rs     # Error types
-│   └── Cargo.toml
-├── vite.config.ts         # Vite build configuration
-├── vitest.config.ts       # Test runner configuration
-├── tsconfig.json          # TypeScript configuration
-└── flake.nix             # Nix development environment
-```
-
-## API Reference
-
-### Tauri Commands
-
-All commands are invoked via `@tauri-apps/api` core:
-
-#### `save_devices`
-Save device list to persistent storage.
-```typescript
-await invoke('save_devices', { devices: Device[] })
-```
-
-#### `load_devices`
-Load device list from persistent storage.
-```typescript
-const devices = await invoke<Device[]>('load_devices')
-```
-
-#### `send_magic_packet`
-Send a WoL magic packet to specified MAC address.
-```typescript
-await invoke('send_magic_packet', { mac: string })
-```
-
-#### `update_device`
-Update device by index.
-```typescript
-await invoke('update_device', { index: number, name: string, mac: string })
-```
-
-#### `delete_device`
-Delete device by index.
-```typescript
-await invoke('delete_device', { index: number })
-```
-
-### Device Interface
-
-```typescript
-interface Device {
-  name: string;      // Device name (required)
-  mac: string;       // MAC address (format: XX:XX:XX:XX:XX:XX)
-}
-```
-
-### Error Handling
-
-All commands return errors as strings. Frontend should wrap invokes in try/catch:
-
-```typescript
-try {
-  await invoke('send_magic_packet', { mac })
-} catch (error) {
-  console.error('Failed to wake device:', error)
-}
-```
-
-## Data Storage
-
-Devices are stored in your system's application data directory:
-- **macOS**: `~/Library/Application Support/com.homelab-wol.desktop/devices.json`
-- **Linux**: `~/.config/com.homelab-wol.desktop/devices.json`
-- **Windows**: `%APPDATA%/com.homelab-wol.desktop/devices.json`
-
-## CI/CD Pipeline
-
-GitHub Actions automatically:
-- Checks code formatting (ESLint, Prettier, Cargo fmt)
-- Runs clippy and Rust tests
-- Runs frontend tests with coverage reporting
-- Builds Linux AppImage
-
-## Troubleshooting
-
-### Tests fail with "Cannot find module"
-- Run `pnpm install` to ensure all dependencies are installed
-- Clear Vitest cache: `rm -rf .vitest`
-
-### Tauri dev build fails
-- Ensure Rust toolchain is installed: `rustup update`
-- On Linux, install webkit dependencies (see Installation)
-
-### MAC address validation fails
-- Format must be `XX:XX:XX:XX:XX:XX` (uppercase hex with colons)
-- Example: `00:1A:2B:3C:4D:5E`
-
-## IDE Setup
-
-### VS Code (Recommended)
-
-Install extensions:
-- [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
-- [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-- [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
-
-## License
-
-MIT
-
-## Contributing
-
-Contributions welcome! Please:
-1. Follow the code style (ESLint/Prettier)
-2. Add tests for new features
-3. Ensure all CI checks pass
-4. Update README if needed
