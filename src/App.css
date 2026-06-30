@@ -38,7 +38,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-
 /* --- App layout --- */
 .app {
   display: flex;
@@ -237,7 +236,9 @@ body {
   line-height: 1;
   padding: 1px 3px;
   border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .group-action-btn:hover {
@@ -801,7 +802,9 @@ body {
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.08em;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .drawer-ping-btn:hover {
@@ -1463,6 +1466,21 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.toast.removing {
+  animation: toastOut 0.2s ease forwards;
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 
