@@ -10,10 +10,10 @@ const deviceWithIp: Device = { name: "PC", mac: "AA:BB:CC:DD:EE:FF", ip: "192.16
 const deviceNoIp: Device = { name: "Printer", mac: "11:22:33:44:55:66" };
 
 describe("useDeviceWake", () => {
-  let pingDevice: ReturnType<typeof vi.fn>;
-  let setWaking: ReturnType<typeof vi.fn>;
-  let clearStatus: ReturnType<typeof vi.fn>;
-  let clearStatusIfWaking: ReturnType<typeof vi.fn>;
+  let pingDevice: Mock<(device: Device) => Promise<boolean>>;
+  let setWaking: Mock<(mac: string) => void>;
+  let clearStatus: Mock<(mac: string) => void>;
+  let clearStatusIfWaking: Mock<(mac: string) => void>;
   let addToast: Mock<(message: string, type: "success" | "error" | "info") => void>;
   let addLog: Mock<(message: string, level: "info" | "success" | "error") => void>;
 
